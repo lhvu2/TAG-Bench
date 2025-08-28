@@ -12,15 +12,39 @@ from openai import OpenAI
 ############################################################################################################
 ###################################### Match based queries #################################################
 ############################################################################################################
+script_path = os.path.abspath(__file__)
+script_directory = os.path.dirname(script_path)
+print(script_directory)
 
-client = OpenAI()
+model_id='ibm-granite/granite-3.2-8b-instruct'
+client = OpenAI(
+    api_key=os.environ["RITS_API_KEY"],
+)
+
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(
+        model='ibm-granite/granite-3.2-8b-instruct',
+        temperature=0,
+        max_retries=3,
+        api_key='/',
+        base_url='https://inference-3scale-apicast-production.apps.rits.fmaas.res.ibm.com/granite-3-2-8b-instruct/v1',
+        default_headers={'RITS_API_KEY': os.environ["RITS_API_KEY"]}
+    )
 
 def pipeline_0():
     query = "Among the schools with the average score in Math over 560 in the SAT test, how many schools are in counties in the bay area?"
     answer = 71
-    scores_df = pd.read_csv("../pandas_dfs/california_schools/satscores.csv")
+
+    print(f"question: {query}")
+    #scores_df = pd.read_csv("../pandas_dfs/california_schools/satscores.csv")
+    scores_df = pd.read_csv(join(script_directory, "../pandas_dfs/california_schools/satscores.csv"))
     scores_df = scores_df[scores_df["AvgScrMath"] > 560]
     unique_counties_df = scores_df[["cname"]].drop_duplicates()
+    unique_counties_df = unique_counties_df.head(1)
+
+    print(f"before inferencing: {unique_counties_df.shape}")
+
     bay_area_counties_df = unique_counties_df.sem_filter("{cname} is in the bay area")
     bay_area_counties = bay_area_counties_df["cname"].tolist()
 
@@ -173,7 +197,7 @@ def pipeline_16():
     answer = "left"
     players_df = pd.read_csv("../pandas_dfs/european_football_2/Player.csv")
     attributes_df = pd.read_csv("../pandas_dfs/european_football_2/Player_Attributes.csv")
-    key_player = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is the first and last name of the player who has won the most Ballon d'Or awards of all time? Respond with only the name and no other words."}]).choices[0].message.content
+    key_player = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the first and last name of the player who has won the most Ballon d'Or awards of all time? Respond with only the name and no other words."}]).choices[0].message.content
     players_df = players_df[players_df["player_name"] == key_player]
     merged_df = pd.merge(players_df, attributes_df, on="player_api_id")
     merged_df = merged_df[["player_name", "preferred_foot"]]
@@ -318,7 +342,7 @@ def pipeline_25():
     transactions_df = pd.read_csv("../pandas_dfs/debit_card_specializing/transactions_1k.csv")
     gasstations_df = pd.read_csv("../pandas_dfs/debit_card_specializing/gasstations.csv")
 
-    countries = client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "What are abbreviations for the country historically known as Bohemia? If there are multiple possible abbreivations list them as a python list with quotes around each abbreviation. Answer with ONLY the list in brackets."}]).choices[0].message.content
+    countries = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What are abbreviations for the country historically known as Bohemia? If there are multiple possible abbreivations list them as a python list with quotes around each abbreviation. Answer with ONLY the list in brackets."}]).choices[0].message.content
 
     try:
         countries = eval(countries)
@@ -344,7 +368,7 @@ def pipeline_27():
     merged_df = pd.merge(users_df, badges_df, left_on="Id", right_on="UserId")
     merged_df = merged_df[merged_df["Name"] == "Supporter"]
 
-    location = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is the capital city of Austria? Respond with only the city name and no other words."}]).choices[0].message.content
+    location = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the capital city of Austria? Respond with only the city name and no other words."}]).choices[0].message.content
     location = f"{location}, Austria"
     merged_df = merged_df[merged_df["Location"] == location]
     prediction = merged_df.sort_values(by=["Age"], ascending=False).DisplayName.values.tolist()[0]
@@ -385,7 +409,7 @@ def pipeline_30():
 
     first_df = customers_df[customers_df["Currency"] == "CZK"]
 
-    currency = client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "What is the 3 letter code for the second-largest reserved currency in the world? Respond with only the 3 letter code and no other words."}]).choices[0].message.content
+    currency = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the 3 letter code for the second-largest reserved currency in the world? Respond with only the 3 letter code and no other words."}]).choices[0].message.content
     second_df = customers_df[customers_df["Currency"] == currency]
 
     if len(first_df) > len(second_df):
@@ -401,7 +425,7 @@ def pipeline_33():
     answer = 2
     schools_df = pd.read_csv("../pandas_dfs/california_schools/schools.csv")
     scores_df = pd.read_csv("../pandas_dfs/california_schools/satscores.csv")
-    city = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is the name of the city that is the county seat of Lake County, California? Respond with only the city name and no other words."}]).choices[0].message.content
+    city = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the name of the city that is the county seat of Lake County, California? Respond with only the city name and no other words."}]).choices[0].message.content
     schools_df = schools_df[schools_df["City"] == city]
     scores_df["total"] = scores_df["AvgScrRead"] + scores_df["AvgScrMath"] + scores_df["AvgScrWrite"]
     scores_df = scores_df[scores_df["total"] >= 1500]
@@ -417,7 +441,7 @@ def pipeline_35():
     drivers_df = pd.read_csv("../pandas_dfs/formula_1/drivers.csv")
     results_df = pd.read_csv("../pandas_dfs/formula_1/results.csv")
     results_df = results_df[results_df["rank"] == 2]
-    vietnamyear = int(client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "What is the year of the end of the Vietnam war? Respond with only the year and no other words."}]).choices[0].message.content)
+    vietnamyear = int(client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the year of the end of the Vietnam war? Respond with only the year and no other words."}]).choices[0].message.content)
 
     drivers_df["birthyear"] = drivers_df.dropna(subset=["dob"])["dob"].str[:4].astype(int)
     drivers_df = drivers_df[drivers_df["birthyear"] > vietnamyear]
@@ -493,7 +517,7 @@ def pipeline_39():
     query = "How many players were born after the year of the 14th FIFA World Cup?"
     answer = 3028
     players_df = pd.read_csv("../pandas_dfs/european_football_2/Player.csv")
-    wcyear = int(client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "Return the year of the 14th FIFA World Cup. Answer with the year ONLY."}]).choices[0].message.content)
+    wcyear = int(client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "Return the year of the 14th FIFA World Cup. Answer with the year ONLY."}]).choices[0].message.content)
 
     players_df["birthyear"] = players_df["birthday"].str[:4].astype(int)
     players_df = players_df[players_df["birthyear"] > wcyear]
@@ -511,7 +535,7 @@ def pipeline_40():
     attributes_df = attributes_df[attributes_df["volleys"] > 70]
     merged_df = pd.merge(players_df, attributes_df, on="player_api_id").drop_duplicates(subset="player_api_id")
 
-    steph_height = client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "How tall is Bill Clinton in centimeters? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    steph_height = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "How tall is Bill Clinton in centimeters? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     steph_height = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", steph_height).group(1))
 
     merged_df = merged_df[merged_df["height"] > int(steph_height)]
@@ -526,7 +550,7 @@ def pipeline_41():
     scores_df = pd.read_csv("../pandas_dfs/california_schools/satscores.csv")
     frpm_df = pd.read_csv("../pandas_dfs/california_schools/frpm.csv")
     frpm_df = frpm_df[(frpm_df["Free Meal Count (K-12)"] / frpm_df["Enrollment (K-12)"]) > 0.1]
-    max_score = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is the maximum SAT score?. Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    max_score = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the maximum SAT score?. Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     max_score = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", max_score).group(1))
     scores_df = scores_df[scores_df["AvgScrRead"] + scores_df["AvgScrMath"] >= max_score - 300]
     merged_df = pd.merge(scores_df, frpm_df, left_on="cds", right_on="CDSCode").drop_duplicates(subset="cds")
@@ -540,7 +564,7 @@ def pipeline_42():
     answer = 1236
     schools_df = pd.read_csv("../pandas_dfs/california_schools/schools.csv")
     frpm_df = pd.read_csv("../pandas_dfs/california_schools/frpm.csv")
-    avg_class_size = client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "What is the number of days in April? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    avg_class_size = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the number of days in April? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     avg_class_size = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", avg_class_size).group(1))
 
     frpm_df = frpm_df[frpm_df["Enrollment (K-12)"] - frpm_df["Enrollment (Ages 5-17)"] > avg_class_size]
@@ -555,7 +579,7 @@ def pipeline_43():
     answer = 32
     users_df = pd.read_csv("../pandas_dfs/codebase_community/users.csv")
     users_df = users_df[users_df["UpVotes"] > 100]
-    median_age = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is the median age in America? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    median_age = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the median age in America? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     median_age = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", median_age).group(1))
     users_df = users_df[users_df["Age"] > median_age]
     prediction = len(users_df)
@@ -567,7 +591,7 @@ def pipeline_44():
     query = "Please list the player names taller than 6 foot 8?"
     answer = ["Kristof van Hout"]
     players_df = pd.read_csv("../pandas_dfs/european_football_2/Player.csv")
-    height = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is 6 foot 8 in centimeters? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    height = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is 6 foot 8 in centimeters? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     height = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", height).group(1))
     players_df = players_df[players_df["height"] > height]
     prediction = players_df["player_name"].values.tolist()
@@ -579,7 +603,7 @@ def pipeline_45():
     answer = 24
     players_df = pd.read_csv("../pandas_dfs/european_football_2/Player.csv")
     players_df = players_df[players_df["player_name"].str.startswith("Adam")]
-    pounds = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is 77.1kg in pounds? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    pounds = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is 77.1kg in pounds? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     pounds = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", pounds).group(1))
     players_df = players_df[players_df["weight"] > pounds]
     prediction = len(players_df)
@@ -591,7 +615,7 @@ def pipeline_46():
     query = "Please provide the names of top three football players who are over 5 foot 11 tall in alphabetical order."
     answer = ["Aaron Appindangoye", "Aaron Galindo", "Aaron Hughes"]
     players_df = pd.read_csv("../pandas_dfs/european_football_2/Player.csv")
-    height = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": "What is 5 foot 11 in centimeters? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    height = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is 5 foot 11 in centimeters? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     height = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", height).group(1))
     players_df = players_df[players_df["height"] > height]
     players_df = players_df.sort_values("player_name")
@@ -607,7 +631,7 @@ def pipeline_47():
     gasstations_df = pd.read_csv("../pandas_dfs/debit_card_specializing/gasstations.csv")
     gasstations_df = gasstations_df[gasstations_df["Country"] == "CZE"]
     merged_df = pd.merge(transactions_df, gasstations_df, on="GasStationID")
-    price = client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "What is 45 USD in CZK? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
+    price = client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is 45 USD in CZK? Box your final answer with \\boxed{just a number}."}]).choices[0].message.content
     price = float(re.search(r"\\boxed\{(\d+(\.\d+)?)\}", price).group(1))
 
     merged_df = merged_df[merged_df["Price"] > price]
@@ -637,7 +661,7 @@ def pipeline_49():
     results_df = pd.read_csv("../pandas_dfs/formula_1/results.csv")
     races_df = pd.read_csv("../pandas_dfs/formula_1/races.csv")
     merged_df = pd.merge(drivers_df, results_df, on="driverId").merge(races_df, on="raceId")
-    half_point = int(client.chat.completions.create(model="gpt-4o", messages=[{"role": "user", "content": "What is the half point of typical number of starting positions in a F1 race? Answer with only the number."}]).choices[0].message.content)
+    half_point = int(client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": "What is the half point of typical number of starting positions in a F1 race? Answer with only the number."}]).choices[0].message.content)
     prediction = merged_df[merged_df["position"] < half_point].name.values[0]
 
     return prediction, answer
@@ -1134,12 +1158,12 @@ def pipeline_103():
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pipelines", nargs="+", required=True, help="List of pipelines to run")
+    # parser.add_argument("--pipelines", nargs="+", required=True, help="List of pipelines to run")
     parser.add_argument("--output_dir", type=str)
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()
 
-
+from os.path import join
 if __name__ == "__main__":
     # lm = OpenAIModel(
     #     model="meta-llama/Meta-Llama-3.1-70B-Instruct",
@@ -1148,19 +1172,35 @@ if __name__ == "__main__":
     #     max_tokens=1024,
     #     max_batch_size=512,
     # )
-    api_key = os.environ['OPENAI_API_KEY']
-    # api_key = os.environ['TOGETHER_API_KEY']
-    lm = lotus.models.LM(model="gpt-4o", api_key=api_key)
+    # api_key = os.environ['OPENAI_API_KEY']
+    # # api_key = os.environ['TOGETHER_API_KEY']
+    # lm = lotus.models.LM(model=model_id, api_key=api_key)
     # lm = LM(model="together/deepseek-ai/DeepSeek-R1", api_key=api_key)
+    # Configure models for LOTUS
+    lm = LM(
+        model="ibm-granite/granite-3.1-8b-instruct",
+        rits_url='https://inference-3scale-apicast-production.apps.rits.fmaas.res.ibm.com/granite-3-1-8b-instruct/v1',
+    )
+ 
     lotus.settings.configure(lm=lm)
 
     args = parse_args()
     if args.verbose:
         lotus.logger.setLevel("DEBUG")
 
-    pipelines = args.pipelines
+    #pipelines = args.pipelines
+    pipelines = [
+                "0",
+                # "1", "3", "4", "5", "6", "8", "10", 
+                #"11", "13", "16", "18", "19", "20", "21", 
+                #"24", "108", "109", "110", "111",
+                ]
+
+
+
+    args.output_dir = "out_hand_written"
     if args.output_dir:
-        os.makedirs(args.output_dir, exist_ok=True)
+        os.makedirs(join(script_directory, args.output_dir), exist_ok=True)
 
     for pipeline in pipelines:   
         tic = time.time()
